@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-web-app
+  namespace: secure-prod # <--- Update this
+spec:
+  replicas: 4            # <--- Increase this (High Availability)
+  selector:
+    matchLabels:
+      app: secure-app
+  template:
+    metadata:
+      labels:
+        app: secure-app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: web-container
+        image: nginxinc/nginx-unprivileged:stable-alpine
+        ports:
+        - containerPort: 8080
+        env:
+          - name: APP_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: app-credentials # This matches the secret in Step 2
+                key: username
+          - name: APP_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: app-credentials
+                key: password
+        # ... keep the rest (resources and securityContext) the same as dev
+
