@@ -1,0 +1,33 @@
+name: Secure-K8s Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  devsecops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Scan K8s Manifests for misconfigurations
+      - name: Kubescape Infrastructure Scan
+        uses: kubescape/github-action@main
+        with:
+          files: "dev/*.yaml,prod/*.yaml"
+
+      # 2. Build the Python Docker Image
+      - name: Build Docker Image
+        run: docker build -t secure-python-app:${{ github.sha }} .
+
+      # 3. Scan the Image for Vulnerabilities
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'secure-python-app:${{ github.sha }}'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
