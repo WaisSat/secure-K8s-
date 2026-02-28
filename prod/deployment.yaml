@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: secure-web-app
-  namespace: secure-prod
+  namespace: secure-prod # Remember to keep this 'secure-dev' in the dev file!
   labels:
     app: secure-app
     tier: frontend
@@ -16,6 +16,8 @@ spec:
       labels:
         app: secure-app
     spec:
+      # FIX 1: Prevent the default service account token from being mounted (CIS 4.1.5)
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -27,7 +29,6 @@ spec:
         image: nginxinc/nginx-unprivileged:stable-alpine
         ports:
         - containerPort: 8080
-        # FIX: Added Resource Limits to prevent High Severity failure
         resources:
           limits:
             cpu: "500m"
@@ -35,7 +36,6 @@ spec:
           requests:
             cpu: "250m"
             memory: "128Mi"
-        # FIX: Added Probes for better reliability (Low Severity fixes)
         readinessProbe:
           httpGet:
             path: /
@@ -51,6 +51,9 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+          # FIX 2: Ensure the container runs with a restricted set of capabilities
+          runAsNonRoot: true
+          runAsUser: 1000
           capabilities:
             drop:
               - ALL
@@ -65,4 +68,3 @@ spec:
               secretKeyRef:
                 name: app-credentials
                 key: password
-                
