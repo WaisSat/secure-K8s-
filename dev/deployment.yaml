@@ -2,9 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: secure-web-app
-  namespace: secure-dev
+  namespace: secure-prod
+  labels:
+    app: secure-app
+    tier: frontend
 spec:
-  replicas: 2
+  replicas: 4
   selector:
     matchLabels:
       app: secure-app
@@ -13,27 +16,44 @@ spec:
       labels:
         app: secure-app
     spec:
-      # --- POD LEVEL SECURITY ---
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 2000
-
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: web-container
         image: nginxinc/nginx-unprivileged:stable-alpine
         ports:
         - containerPort: 8080
-
-        # --- CONTAINER LEVEL SECURITY ---
+        # FIX: Added Resource Limits to prevent High Severity failure
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
+        # FIX: Added Probes for better reliability (Low Severity fixes)
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           capabilities:
             drop:
               - ALL
-
-        # --- ENVIRONMENT VARIABLES FROM SECRETS ---
         env:
           - name: APP_USERNAME
             valueFrom:
@@ -45,21 +65,4 @@ spec:
               secretKeyRef:
                 name: app-credentials
                 key: password
-
-        # --- MOUNT POINTS FOR READ-ONLY FS ---
-        volumeMounts:
-        - name: tmp-volume
-          mountPath: /tmp
-        - name: cache-volume
-          mountPath: /var/cache/nginx
-        - name: run-volume
-          mountPath: /var/run
-
-      # --- VOLUMES (TEMPORARY STORAGE) ---
-      volumes:
-      - name: tmp-volume
-        emptyDir: {}
-      - name: cache-volume
-        emptyDir: {}
-      - name: run-volume
-        emptyDir: {}
+                
