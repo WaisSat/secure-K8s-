@@ -17,7 +17,8 @@ jobs:
       - name: Kubescape Infrastructure Scan
         uses: kubescape/github-action@main
         with:
-          files: "dev/*.yaml,prod/*.yaml"
+          files: "**/*.yaml"
+          severityThreshold: high
 
       # 2. Build the Python Docker Image
       - name: Build Docker Image
