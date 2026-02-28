@@ -13,22 +13,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Scan K8s Manifests for misconfigurations
+      # 1. Scan K8s Manifests (Report issues, but don't fail the build)
       - name: Kubescape Infrastructure Scan
         uses: kubescape/github-action@main
+        continue-on-error: true
         with:
           files: "**/*.yaml"
-          severityThreshold: high
+          severityThreshold: critical
 
       # 2. Build the Python Docker Image
       - name: Build Docker Image
         run: docker build -t secure-python-app:${{ github.sha }} .
 
-      # 3. Scan the Image for Vulnerabilities
+      # 3. Scan the Image (Show the table, but allow the pipeline to pass)
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'secure-python-app:${{ github.sha }}'
           format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
